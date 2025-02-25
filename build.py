@@ -1,3 +1,12 @@
+def print_usage():
+	print("Odin + Sokol Hot Reload Template build script. Possible flags:\n")
+	print("hot-reload      Build hot reload game DLL. Also builds executable if game not already running. This is the default when not specifying anything.")
+	print("release         Build release game executable. Note: Deletes everything in the 'build/release' directory")
+	print("debug           Build release-style game executable, but with debugging enabled. Note: Don't use this to debug the hot reload exe. The hot reload exe always has debugging enabled.")
+	print("run             Run the executable after compiling it.")
+	print("skip-shaders    Don't compile shaders.")
+	print("update-sokol    Download Sokol bindings and Sokol shader compiler. Compiles the libraries for the current platform. Note: Deletes everything in 'sokol-shdc' and 'source/sokol' directories.")	
+
 import urllib.request
 import os
 import zipfile
@@ -5,17 +14,46 @@ import shutil
 import sys
 import platform
 import subprocess
+from enum import Enum
 
-system = platform.system()
+SYSTEM = platform.system()
+IS_WINDOWS = SYSTEM == "Windows"
+IS_OSX = SYSTEM == "Darwin"
+IS_LINUX = SYSTEM == "Linux"
 
 def main():
-	update_sokol()
-	build_shaders()
+	if "help" in sys.argv or "--help" in sys.argv or "-help" in sys.argv:
+		print_usage()
+		return
+
+	update_sokol("update-sokol" in sys.argv)
+
+	if not "skip-shaders" in sys.argv:
+		build_shaders()
+
+	build_type = "hot-reload"
 
 	if "release" in sys.argv:
-		build_release()
-	else:
-		build_hot_reload()
+		build_type = "release"
+
+	if "debug" in sys.argv:
+		build_type = "debug"
+
+	if "hot-reload" in sys.argv:
+		build_type = "hot-reload"
+
+	exe_path = ""
+	
+	if build_type == "release":
+		exe_path = build_release()
+	if build_type == "debug":
+		exe_path = build_debug()
+	elif build_type == "hot-reload":
+		exe_path = build_hot_reload()
+
+	if exe_path != "" and "run" in sys.argv:
+		print("Starting " + exe_path)
+		subprocess.Popen(exe_path)
 
 def build_shaders():
 	print("Building shaders...")
@@ -32,12 +70,12 @@ def build_shaders():
 		out_dir = os.path.dirname(s)
 		out_filename = os.path.basename(s)
 		out = out_dir + "/gen__" + (out_filename.removesuffix("glsl") + "odin")
-		os.system(shdc + " -i %s -o %s -l glsl300es:hlsl4:glsl430 -f sokol_odin" % (s, out))
+		execute(shdc + " -i %s -o %s -l glsl300es:hlsl4:glsl430 -f sokol_odin" % (s, out))
 
 def get_shader_compiler():
 	path = ""
 
-	if system == "Windows":
+	if IS_WINDOWS:
 		path = "sokol-shdc\\win32\\sokol-shdc.exe"
 
 	assert os.path.exists(path), "Could not find shader compiler. Try running this script with update-sokol parameter"
@@ -54,30 +92,28 @@ def build_hot_reload():
 
 	game_running = process_exists(exe)
 
-	print("Building " + dll)
-	os.system("odin build source -debug -define:SOKOL_DLL=true -build-mode:dll -out:" + dll)
+	print("Building " + dll + "...")
+	execute("odin build source -debug -define:SOKOL_DLL=true -build-mode:dll -out:" + dll)
 
 	if game_running:
 		print("Hot reloading...")
 
 		# Hot reloading means the running executable will see the new dll.
-		# So we can just return here.
-		return
+		# So we can just return empty string here. This makes sure that the main
+		# function does not try to run the executable, even if `run` is specified.
+		return ""
 
-	print("Building " + exe)
-	os.system("odin build source/main_hot_reload -strict-style -define:SOKOL_DLL=true -vet -debug -out:%s" % exe)
+	print("Building " + exe + "...")
+	execute("odin build source/main_hot_reload -strict-style -define:SOKOL_DLL=true -vet -debug -out:%s" % exe)
 
-	if system == "Windows":
+	if IS_WINDOWS:
 		dll_name = "sokol_dll_windows_x64_d3d11_debug.dll"
 
 		if not os.path.exists(dll_name):
 			print("Copying %s" % dll_name)
 			shutil.copyfile(sokol_path + "/" + dll_name, dll_name)
 
-	if "run" in sys.argv:
-		print("Starting " + exe)
-		subprocess.Popen(exe)
-
+	return exe
 
 def build_release():
 	out_dir = "build/release"
@@ -89,52 +125,64 @@ def build_release():
 
 	exe = out_dir + "/game_release" + executable_extension()
 
-	print("Building " + exe)
+	print("Building " + exe + "...")
 
 	extra_args = ""
 
-	if system == "Windows":
+	if IS_WINDOWS:
 		extra_args += " -subsystem:windows"
 
-	os.system("odin build source/main_release -out:%s -strict-style -vet -no-bounds-check -o:speed %s" % (exe, extra_args))
+	execute("odin build source/main_release -out:%s -strict-style -vet -no-bounds-check -o:speed %s" % (exe, extra_args))
 	shutil.copytree("assets", out_dir + "/assets")
 
-	if "run" in sys.argv:
-		print("Starting " + exe)
-		subprocess.Popen(exe)
+	return exe
+
+def build_debug():
+	out_dir = "build/debug"
+
+	if not os.path.exists(out_dir):
+		os.mkdir(out_dir)
+
+	exe = out_dir + "/game_debug" + executable_extension()
+	print("Building " + exe + "...")
+	execute("odin build source/main_release -out:%s -strict-style -vet -debug" % exe)
+	shutil.copytree("assets", out_dir + "/assets", dirs_exist_ok = True)
+	return exe
+
+def execute(cmd):
+	res = os.system(cmd)
+	assert res == 0, "Failed running: " + cmd
 
 def dll_extension():
-	if system == "Windows":
+	if IS_WINDOWS:
 		return ".dll"
 
-	if system == "Darwin":
+	if IS_OSX:
 		return ".dylib"
 
 	return ".so"
 
 def executable_extension():
-	if system == "Windows":
+	if IS_WINDOWS:
 		return ".exe"
 
 	return ".bin"
 
 sokol_path = "source/sokol"
 
-def update_sokol():
-	force_update_sokol = "update-sokol" in sys.argv
-
+def update_sokol(force_update):
 	tools_zip = "https://github.com/floooh/sokol-tools-bin/archive/refs/heads/master.zip"
 	sokol_zip = "https://github.com/floooh/sokol-odin/archive/refs/heads/main.zip"
 	shdc_path = "sokol-shdc"
 
-	if force_update_sokol:
+	if force_update:
 		if os.path.exists(shdc_path):
 			shutil.rmtree(shdc_path)
 
 		if os.path.exists(sokol_path):
 			shutil.rmtree(sokol_path)
 
-	if (not os.path.exists(sokol_path)) or force_update_sokol:
+	if (not os.path.exists(sokol_path)) or force_update:
 		temp_zip = "sokol-temp.zip"
 		temp_folder = "sokol-temp"
 		print("Downloading Sokol Odin bindings to directory source/sokol...")
@@ -147,28 +195,28 @@ def update_sokol():
 		os.remove(temp_zip)
 		shutil.rmtree(temp_folder)
 
-		print("Building Sokol C libraries")
+		print("Building Sokol C libraries...")
 		owd = os.getcwd()
 		os.chdir(sokol_path)
 
-		if system == "Windows":
+		if IS_WINDOWS:
 			cl_exists = shutil.which("cl.exe") is not None
 
 			if cl_exists:
-				os.system("build_clibs_windows.cmd")
+				execute("build_clibs_windows.cmd")
 			else:
 				print("cl.exe not in PATH. Try running this from a Visual Studio command prompt.")
 
 			emcc_exists = shutil.which("emcc.bat") is not None
 
 			if emcc_exists:
-				os.system("build_clibs_wasm.bat")
+				execute("build_clibs_wasm.bat")
 			else:
 				print("emcc.exe not in PATH, skipping building of WASM libs.")
 			
 		os.chdir(owd)
 
-	if (not os.path.exists(shdc_path)) or force_update_sokol:
+	if (not os.path.exists(shdc_path)) or force_update:
 		temp_zip = "sokol-tools-temp.zip"
 		temp_folder = "sokol-tools-temp"
 
@@ -183,7 +231,7 @@ def update_sokol():
 		shutil.rmtree(temp_folder)
 
 def process_exists(process_name):
-	if system == "Windows":
+	if IS_WINDOWS:
 		call = 'TASKLIST', '/NH', '/FI', 'imagename eq %s' % process_name
 		return process_name in str(subprocess.check_output(call))
 

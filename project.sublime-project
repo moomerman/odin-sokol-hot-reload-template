@@ -19,6 +19,10 @@
 					"name": "release",
 					"cmd": "python build.py release",
 				},
+				{
+					"name": "debug",
+					"cmd": "python build.py debug",
+				},
 			],
 		}
 	],
