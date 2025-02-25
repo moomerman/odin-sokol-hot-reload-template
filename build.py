@@ -81,6 +81,8 @@ def get_shader_compiler():
 	assert os.path.exists(path), "Could not find shader compiler. Try running this script with update-sokol parameter"
 	return path
 
+path_join = os.path.join
+
 def build_hot_reload():
 	out_dir = "build/hot_reload"
 
@@ -90,10 +92,42 @@ def build_hot_reload():
 	exe = "game_hot_reload" + executable_extension()
 	dll = out_dir + "/game" + dll_extension()
 
+	# Only used on windows
+	pdb_dir = out_dir + "/game_pdbs"
+	pdb_number = 0
+	
+	dll_extra_args = ""
 	game_running = process_exists(exe)
 
+	if IS_WINDOWS:
+		if not game_running:
+			out_dir_files = os.listdir(out_dir)
+
+			for f in out_dir_files:
+				if f.endswith(".dll"):
+					os.remove(os.path.join(out_dir, f))
+
+			if os.path.exists(pdb_dir):
+				shutil.rmtree(pdb_dir)
+
+		if not os.path.exists(pdb_dir):
+			os.mkdir(pdb_dir)
+		else:
+			pdb_files = os.listdir(pdb_dir)
+
+			for f in pdb_files:
+				if f.endswith(".pdb"):
+					n = int(f.removesuffix(".pdb").removeprefix("game_"))
+
+					if n > pdb_number:
+						pdb_number = n
+
+		# On windows we make sure the PDB name for the DLL is unique on each
+		# build. This makes debugging work properly.
+		dll_extra_args = " -pdb-name:%s/game_%i.pdb" % (pdb_dir, pdb_number + 1)
+
 	print("Building " + dll + "...")
-	execute("odin build source -debug -define:SOKOL_DLL=true -build-mode:dll -out:" + dll)
+	execute("odin build source -debug -define:SOKOL_DLL=true -build-mode:dll -out:%s %s" % (dll, dll_extra_args))
 
 	if game_running:
 		print("Hot reloading...")
@@ -103,8 +137,13 @@ def build_hot_reload():
 		# function does not try to run the executable, even if `run` is specified.
 		return ""
 
+	exe_extra_args = ""
+
+	if IS_WINDOWS:
+		exe_extra_args = " -pdb-name:%s/main_hot_reload.pdb" % out_dir
+
 	print("Building " + exe + "...")
-	execute("odin build source/main_hot_reload -strict-style -define:SOKOL_DLL=true -vet -debug -out:%s" % exe)
+	execute("odin build source/main_hot_reload -strict-style -define:SOKOL_DLL=true -vet -debug -out:%s %s" % (exe, exe_extra_args))
 
 	if IS_WINDOWS:
 		dll_name = "sokol_dll_windows_x64_d3d11_debug.dll"
