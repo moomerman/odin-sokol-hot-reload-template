@@ -1,9 +1,10 @@
-build/**
+build
 project.sublime-workspace
 game_hot_reload.exe
 game_hot_reload.bin
+linux
+*.rdi
 *.pdb
-linux/**
 sokol-shdc
 source/sokol
 sokol_dll*
