@@ -7,17 +7,32 @@ import platform
 import subprocess
 
 system = platform.system()
-out_dir = "build/hot_reload"
 
 def main():
-	if not os.path.exists(out_dir):
-		os.make_directory(out_dir)
+	update_sokol()
+	build_shaders()
 
-	update_sokol("update-sokol" in sys.argv)
+	if "release" in sys.argv:
+		build_release()
+	else:
+		build_hot_reload()
+
+def build_shaders():
 	print("Building shaders...")
 	shdc = get_shader_compiler()
-	os.system(shdc + " -i source/shader.glsl -o source/shader.odin -l glsl300es:hlsl4:glsl430 -f sokol_odin")
-	build_hot_reload()
+
+	shaders = []
+
+	for root, dirs, files in os.walk("source"):
+		for file in files:
+			if file.endswith(".glsl"):
+				shaders.append(os.path.join(root, file))
+
+	for s in shaders:
+		out_dir = os.path.dirname(s)
+		out_filename = os.path.basename(s)
+		out = out_dir + "/gen__" + (out_filename.removesuffix("glsl") + "odin")
+		os.system(shdc + " -i %s -o %s -l glsl300es:hlsl4:glsl430 -f sokol_odin" % (s, out))
 
 def get_shader_compiler():
 	path = ""
@@ -29,9 +44,15 @@ def get_shader_compiler():
 	return path
 
 def build_hot_reload():
-	exe = output_executable()
+	out_dir = "build/hot_reload"
+
+	if not os.path.exists(out_dir):
+		os.mkdir(out_dir)
+
+	exe = "game_hot_reload" + executable_extension()
+	dll = out_dir + "/game" + dll_extension()
+
 	game_running = process_exists(exe)
-	dll = output_dll()
 
 	print("Building " + dll)
 	os.system("odin build source -debug -define:SOKOL_DLL=true -build-mode:dll -out:" + dll)
@@ -57,24 +78,51 @@ def build_hot_reload():
 		print("Starting " + exe)
 		subprocess.Popen(exe)
 
-def output_executable():
-	if system == "Windows":
-		return "game_hot_reload.exe"
 
-	return "game_hot_reload.bin"
+def build_release():
+	out_dir = "build/release"
 
-def output_dll():
+	if os.path.exists(out_dir):
+		shutil.rmtree(out_dir)
+
+	os.mkdir(out_dir)
+
+	exe = out_dir + "/game_release" + executable_extension()
+
+	print("Building " + exe)
+
+	extra_args = ""
+
 	if system == "Windows":
-		return out_dir + "/game.dll"
-	
+		extra_args += " -subsystem:windows"
+
+	os.system("odin build source/main_release -out:%s -strict-style -vet -no-bounds-check -o:speed %s" % (exe, extra_args))
+	shutil.copytree("assets", out_dir + "/assets")
+
+	if "run" in sys.argv:
+		print("Starting " + exe)
+		subprocess.Popen(exe)
+
+def dll_extension():
+	if system == "Windows":
+		return ".dll"
+
 	if system == "Darwin":
-		return out_dir + "/game.dylib"
+		return ".dylib"
 
-	return out_dir + "/game.so"
+	return ".so"
+
+def executable_extension():
+	if system == "Windows":
+		return ".exe"
+
+	return ".bin"
 
 sokol_path = "source/sokol"
 
-def update_sokol(force_update_sokol):
+def update_sokol():
+	force_update_sokol = "update-sokol" in sys.argv
+
 	tools_zip = "https://github.com/floooh/sokol-tools-bin/archive/refs/heads/master.zip"
 	sokol_zip = "https://github.com/floooh/sokol-odin/archive/refs/heads/main.zip"
 	shdc_path = "sokol-shdc"
