@@ -11,3 +11,4 @@ TODO:
 - README
 - Documentation
 - Make the .vscode stuff work
+- the file reading stuff in utils_web.odin is duiplicated in web folder
