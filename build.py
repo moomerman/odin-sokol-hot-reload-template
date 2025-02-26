@@ -40,6 +40,9 @@ if args.web:
 if num_build_modes > 1:
 	print("Can only use one of: -hot-reload, -release, -debug and -web.")
 	exit(1)
+elif num_build_modes == 0:
+	print("YOu must use one of: -hot-reload, -release, -debug or -web.")
+	exit(1)
 
 SYSTEM = platform.system()
 IS_WINDOWS = SYSTEM == "Windows"
@@ -76,9 +79,7 @@ def main():
 		exe_path = build_web()
 	elif args.hot_reload:
 		exe_path = build_hot_reload()
-	else:
-		exe_path = build_hot_reload()
-
+	
 	if exe_path != "" and args.run:
 		print("Starting " + exe_path)
 		subprocess.Popen(exe_path)

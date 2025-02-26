@@ -12,8 +12,8 @@ Hot reload gameplay code when making games using Odin + Sokol. Also comes with w
 
 ## Getting started with Hot Reload
 
-1. Run `build.py -hot-reload -run` (you need Python) -- It should download and build the Sokol bindings for you
-2. If the building of the Sokol bindings failed in step 2) then you can re-run it using `build.py -hot-reload -compile-sokol -run`
+1. Run `build.py -hot-reload -run` (you need Python) -- It should download the Sokol bindings and try to build the Sokol C libraries.
+2. If the building of the Sokol C libraries failed in step 2) then you can re-run it by adding `-compile-sokol`: `build.py -hot-reload -compile-sokol -run` -- Common reasons for failing to compile the C libaries is that it can't find a C compiler.
 3. A game with just a spinning cube should start
 4. Leave the game running, change a some line in `game.odin`. Modify the line `g.rx += 60 * dt` to use the value `500` instead of `60`.
 5. Re-run `build.py -hot-reload`. The game DLL will re-compile and get reloaded. The cube will spin faster.
@@ -29,3 +29,9 @@ Hot reload gameplay code when making games using Odin + Sokol. Also comes with w
 Make a native release build of your game (no hot reloading) using `build.py -release`
 
 You can do `build.py -debug` to create a release-style executable without hot-reloading, but with debugging enabled.
+
+## Updating Sokol
+
+Add `-update-sokol` when runing `build.py` to download the lastest Odin Sokol bindings and latest Sokol shader compiler. Note that this will completely replace everything in the `sokol-shdc` and `source/sokol` directories.
+
+The update process also tries to compile the Sokol C libraries.
