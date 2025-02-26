@@ -381,7 +381,13 @@ def compile_sokol():
 		execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
 	elif IS_OSX:
 		execute("bash build_clibs_macos.sh")
-		execute("bash build_clibs_wasm.sh")
+		
+		build_wasm_prefix = ""
+		if emsdk_env:
+			os.environ["EMSDK_QUIET"] = "1"
+			build_wasm_prefix += emsdk_env + " && "
+
+		execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
 
 	os.chdir(owd)
 
