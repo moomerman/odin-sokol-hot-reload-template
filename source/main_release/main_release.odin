@@ -6,6 +6,7 @@ package main_release
 
 import "core:log"
 import "core:os"
+import "core:os/os2"
 import "base:runtime"
 
 import game ".."
@@ -14,6 +15,10 @@ import sapp "../sokol/app"
 USE_TRACKING_ALLOCATOR :: #config(USE_TRACKING_ALLOCATOR, false)
 
 main :: proc() {
+	if exe_dir, exe_dir_err := os2.get_executable_directory(context.temp_allocator); exe_dir_err == nil {
+		os2.set_working_directory(exe_dir)
+	}
+
 	when USE_TRACKING_ALLOCATOR {
 		default_allocator := context.allocator
 		tracking_allocator: Tracking_Allocator
@@ -71,7 +76,6 @@ init :: proc "c" () {
 frame :: proc "c" () {
 	context = custom_context
 	game.game_frame()
-	free_all(context.temp_allocator)
 }
 
 event :: proc "c" (e: ^sapp.Event) {

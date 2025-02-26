@@ -12,7 +12,6 @@ import "core:os"
 import "core:os/os2"
 import "core:log"
 import "core:mem"
-import "core:path/filepath"
 import "base:runtime"
 
 import sapp "../sokol/app"
@@ -160,8 +159,6 @@ frame :: proc "c" () {
 			game_api_version += 1
 		}
 	}
-
-	free_all(context.temp_allocator)
 }
 
 reset_tracking_allocator :: proc(a: ^mem.Tracking_Allocator) -> bool {
@@ -191,10 +188,9 @@ cleanup :: proc "c" () {
 old_game_apis: [dynamic]Game_API
 
 main :: proc() {
-	// Set working dir to dir of executable.
-	exe_path := os.args[0]
-	exe_dir := filepath.dir(string(exe_path), context.temp_allocator)
-	os.set_current_directory(exe_dir)
+	if exe_dir, exe_dir_err := os2.get_executable_directory(context.temp_allocator); exe_dir_err == nil {
+		os2.set_working_directory(exe_dir)
+	}
 
 	context.logger = log.create_console_logger()
 

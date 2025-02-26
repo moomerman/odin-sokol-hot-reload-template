@@ -207,6 +207,8 @@ game_frame :: proc() {
 
 	sg.end_pass()
 	sg.commit()
+	
+	free_all(context.temp_allocator)
 }
 
 compute_mvp :: proc (rx, ry: f32) -> Mat4 {

@@ -43,7 +43,6 @@ init :: proc "c" () {
 frame :: proc "c" () {
 	context = custom_context
 	game.game_frame()
-	free_all(context.temp_allocator)
 }
 
 event :: proc "c" (e: ^sapp.Event) {
