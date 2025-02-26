@@ -10,18 +10,22 @@
 		{
 			"name": "Odin + Raylib + Hot Reload template",
 			"working_dir": "$project_path",
-			"cmd": "python build.py run",
+			"cmd": "python build.py -hot-reload -run",
 			// This makes sublime able to jump to build errors.
 			"file_regex": "^(.+)\\(([0-9]+):([0-9]+)\\) (.+)$",
 			
 			"variants": [
 				{
 					"name": "release",
-					"cmd": "python build.py release",
+					"cmd": "python build.py -release",
 				},
 				{
 					"name": "debug",
-					"cmd": "python build.py debug",
+					"cmd": "python build.py -debug",
+				},
+				{
+					"name": "web",
+					"cmd": "python build.py -web",
 				},
 			],
 		}

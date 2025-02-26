@@ -1,20 +1,46 @@
-def print_usage():
-	print("Odin + Sokol Hot Reload Template build script. Possible flags:\n")
-	print("hot-reload      Build hot reload game DLL. Also builds executable if game not already running. This is the default when not specifying anything.")
-	print("release         Build release game executable. Note: Deletes everything in the 'build/release' directory")
-	print("debug           Build release-style game executable, but with debugging enabled. Note: Don't use this to debug the hot reload exe. The hot reload exe always has debugging enabled.")
-	print("run             Run the executable after compiling it.")
-	print("skip-shaders    Don't compile shaders.")
-	print("update-sokol    Download Sokol bindings and Sokol shader compiler. Compiles the libraries for the current platform. Note: Deletes everything in 'sokol-shdc' and 'source/sokol' directories.")	
+import argparse
+
+args_parser = argparse.ArgumentParser(
+	prog = "build.py",
+	description = "Odin + Sokol Hot Reload Template build script.",
+	epilog = "Made by Karl Zylinski.")
+
+args_parser.add_argument("-hot-reload",        action="store_true",   help="Build hot reload game DLL. Also builds executable if game not already running. This is the default when not specifying anything.")
+args_parser.add_argument("-release",           action="store_true",   help="Build release game executable. Note: Deletes everything in the 'build/release' directory.")
+args_parser.add_argument("-debug",             action="store_true",   help="Build release-style game executable, but with debugging enabled. Note: Don't use this to debug the hot reload exe. The hot reload exe always has debugging enabled.")
+args_parser.add_argument("-web",               action="store_true",   help="Build web release. Either make sure emscripten is in your PATH or use -emsdk-path flag to specify where it lives.")
+args_parser.add_argument("-emsdk-path",                               help="Path to where you have emscripten installed. Should be the root directory of your emscripten installation. Not necessary if emscripten is in your PATH.")
+args_parser.add_argument("-run",               action="store_true",   help="Run the executable after compiling it.")
+args_parser.add_argument("-no-shader-compile", action="store_true",   help="Don't compile shaders.")
+args_parser.add_argument("-update-sokol",      action="store_true",   help="Download Sokol bindings and Sokol shader compiler. Compiles the libraries for the current platform. Happens automatically when either the `sokol-shdc' or 'source/sokol' directories are missing. Note: Deletes everything in 'sokol-shdc' and 'source/sokol' directories.")
 
 import urllib.request
 import os
 import zipfile
 import shutil
-import sys
 import platform
 import subprocess
 from enum import Enum
+
+args = args_parser.parse_args()
+
+num_build_modes = 0
+if args.hot_reload:
+	num_build_modes += 1
+if args.release:
+	num_build_modes += 1
+if args.debug:
+	num_build_modes += 1
+if args.web:
+	num_build_modes += 1
+
+if num_build_modes > 1:
+	print("Can only use one of: -hot-reload, -release, -debug and -web.")
+	exit(1)
+
+if args.emsdk_path is not None and not args.web:
+	print("You can't use -emsdk-path without also specifying -web.")
+	exit(1)
 
 SYSTEM = platform.system()
 IS_WINDOWS = SYSTEM == "Windows"
@@ -22,36 +48,23 @@ IS_OSX = SYSTEM == "Darwin"
 IS_LINUX = SYSTEM == "Linux"
 
 def main():
-	if "help" in sys.argv or "--help" in sys.argv or "-help" in sys.argv:
-		print_usage()
-		return
+	update_sokol()
 
-	update_sokol("update-sokol" in sys.argv)
-
-	if not "skip-shaders" in sys.argv:
+	if not args.no_shader_compile:
 		build_shaders()
-
-	build_type = "hot-reload"
-
-	if "release" in sys.argv:
-		build_type = "release"
-
-	if "debug" in sys.argv:
-		build_type = "debug"
-
-	if "hot-reload" in sys.argv:
-		build_type = "hot-reload"
 
 	exe_path = ""
 	
-	if build_type == "release":
+	if args.release:
 		exe_path = build_release()
-	if build_type == "debug":
+	if args.debug:
 		exe_path = build_debug()
-	elif build_type == "hot-reload":
+	if args.hot_reload:
 		exe_path = build_hot_reload()
+	if args.web:
+		exe_path = build_web()
 
-	if exe_path != "" and "run" in sys.argv:
+	if exe_path != "" and args.run:
 		print("Starting " + exe_path)
 		subprocess.Popen(exe_path)
 
@@ -188,6 +201,54 @@ def build_debug():
 	shutil.copytree("assets", out_dir + "/assets", dirs_exist_ok = True)
 	return exe
 
+def build_web():
+	out_dir = "build/web"
+
+	if not os.path.exists(out_dir):
+		os.mkdir(out_dir)
+
+	print("Building js_wasm32 game object...")
+	execute("odin build source/main_release -target:js_wasm32 -build-mode:obj -vet -strict-style -out:%s/game -debug" % out_dir)
+	odin_path = subprocess.run("odin root", capture_output=True, text=True).stdout
+
+	shutil.copyfile(os.path.join(odin_path, "core/sys/wasm/js/odin.js"), os.path.join(out_dir, "odin.js"))
+	os.environ["EMSDK_QUIET"] = "1"
+
+	emcc_files = [
+		"%s/game.wasm.o" % out_dir,
+		"source/sokol/app/sokol_app_wasm_gl_release.a",
+		"source/sokol/glue/sokol_glue_wasm_gl_release.a",
+		"source/sokol/gfx/sokol_gfx_wasm_gl_release.a",
+		"source/sokol/shape/sokol_shape_wasm_gl_release.a",
+		"source/sokol/log/sokol_log_wasm_gl_release.a",
+		"source/sokol/gl/sokol_gl_wasm_gl_release.a",
+	]
+
+	emcc_files_str = " ".join(emcc_files)
+
+	# Note --preload-file assets, this bakes in the whole assets directory into
+	# the web build.
+	emcc_flags = "--shell-file source/web/index_template.html --preload-file assets -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sMAX_WEBGL_VERSION=2 -sASSERTIONS"
+	emcc_command = "emcc -g -o %s/index.html %s %s" % (out_dir, emcc_files_str, emcc_flags)
+
+	if args.emsdk_path:
+		if IS_WINDOWS:
+			emcc_command = os.path.join(args.emsdk_path, "emsdk_env.bat") + " && " + emcc_command
+		else:
+			emcc_command = os.path.join(args.emsdk_path, "emsdk_env.sh") + " && " + emcc_command
+	else:
+		emcc_exists = shutil.which("emcc") is not None
+
+		if not emcc_exists:
+			print("Could not find emcc. Try providing emscripten SDK path using '-emsdk-path PATH' or run the emsdk_env script inside the emscripten folder before running this script.")
+			exit(1)
+
+	print("Building web application using emscripten to %s..." % out_dir)
+	execute(emcc_command)
+
+	# Not needed
+	os.remove(os.path.join(out_dir, "game.wasm.o"))
+
 def execute(cmd):
 	res = os.system(cmd)
 	assert res == 0, "Failed running: " + cmd
@@ -209,7 +270,9 @@ def executable_extension():
 
 sokol_path = "source/sokol"
 
-def update_sokol(force_update):
+def update_sokol():
+	force_update = args.update_sokol
+
 	tools_zip = "https://github.com/floooh/sokol-tools-bin/archive/refs/heads/master.zip"
 	sokol_zip = "https://github.com/floooh/sokol-odin/archive/refs/heads/main.zip"
 	shdc_path = "sokol-shdc"

@@ -4,7 +4,9 @@ exposes in order to allocate memory. Just like Odin's default heap allocator
 this uses proper alignment, so that maps and simd works.
 */
 
-package main_web
+#+build wasm32, wasm64p32
+
+package web_support
 
 import "core:mem"
 import "core:c"
