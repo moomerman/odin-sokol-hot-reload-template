@@ -183,8 +183,8 @@ game_init :: proc() {
 @export
 game_frame :: proc() {
 	dt := f32(sapp.frame_duration())
-	g.rx += 60.0 * dt
-	g.ry += 120.0 * dt
+	g.rx += 60 * dt
+	g.ry += 120 * dt
 
 	// vertex shader uniform with model-view-projection matrix
 	vs_params := Vs_Params {
@@ -207,7 +207,7 @@ game_frame :: proc() {
 
 	sg.end_pass()
 	sg.commit()
-	
+
 	free_all(context.temp_allocator)
 }
 
