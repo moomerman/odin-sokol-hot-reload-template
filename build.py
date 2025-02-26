@@ -208,7 +208,7 @@ def build_web():
 		os.mkdir(out_dir)
 
 	print("Building js_wasm32 game object...")
-	execute("odin build source/main_release -target:js_wasm32 -build-mode:obj -vet -strict-style -out:%s/game -debug" % out_dir)
+	execute("odin build source/main_web -target:js_wasm32 -build-mode:obj -vet -strict-style -out:%s/game -debug" % out_dir)
 	odin_path = subprocess.run("odin root", capture_output=True, text=True).stdout
 
 	shutil.copyfile(os.path.join(odin_path, "core/sys/wasm/js/odin.js"), os.path.join(out_dir, "odin.js"))
