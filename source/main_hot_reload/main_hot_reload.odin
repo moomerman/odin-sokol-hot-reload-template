@@ -1,6 +1,9 @@
 /*
 Development game exe. Loads build/hot_reload/game.dll and reloads it whenever it
 changes.
+
+Uses sokol/app to open the window. The init, frame, event and cleanup callbacks
+of the app run procedures inside the current game DLL.
 */
 
 package main

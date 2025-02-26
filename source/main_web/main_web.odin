@@ -1,5 +1,6 @@
 /*
-Web build entry point
+Web build entry point. This code is executed by the javascript in
+build/web/index.html (created from source/web/index_template.html).
 */
 
 package main_web

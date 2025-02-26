@@ -1,5 +1,7 @@
 /*
 For making a release exe that does not use hot reload.
+
+Note how this just uses a `game` package to call the game code. No DLL is loaded.
 */
 
 package main_release
