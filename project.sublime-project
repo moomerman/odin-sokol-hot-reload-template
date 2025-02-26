@@ -25,7 +25,7 @@
 				},
 				{
 					"name": "web",
-					"shell_cmd": "python3 build.py -web -emsdk-path c:/sdk/emsdk",
+					"shell_cmd": "python3 build.py -web -emsdk-path ~/repos/emsdk",
 				},
 			],
 		}

@@ -220,7 +220,7 @@ def build_web():
 
 	print("Building js_wasm32 game object...")
 	execute("odin build source/main_web -target:js_wasm32 -build-mode:obj -vet -strict-style -out:%s/game -debug" % out_dir)
-	odin_path = subprocess.run("odin root", capture_output=True, text=True).stdout
+	odin_path = subprocess.run(["odin", "root"], capture_output=True, text=True).stdout
 
 	shutil.copyfile(os.path.join(odin_path, "core/sys/wasm/js/odin.js"), os.path.join(out_dir, "odin.js"))
 	os.environ["EMSDK_QUIET"] = "1"
@@ -242,11 +242,13 @@ def build_web():
 	emcc_flags = "--shell-file source/web/index_template.html --preload-file assets -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sMAX_WEBGL_VERSION=2 -sASSERTIONS"
 	emcc_command = "emcc -g -o %s/index.html %s %s" % (out_dir, emcc_files_str, emcc_flags)
 
-	if args.emsdk_path:
+	emsdk_env = get_emscripten_env_command()
+
+	if emsdk_env is not None:
 		if IS_WINDOWS:
-			emcc_command = os.path.join(args.emsdk_path, "emsdk_env.bat") + " && " + emcc_command
+			emcc_command = emsdk_env + " && " + emcc_command
 		else:
-			emcc_command = os.path.join(args.emsdk_path, "emsdk_env.sh") + " && " + emcc_command
+			emcc_command = "bash -c \"" + emsdk_env + " && " + emcc_command + "\""
 	else:
 		emcc_exists = shutil.which("emcc") is not None
 
