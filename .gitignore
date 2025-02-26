@@ -3,6 +3,7 @@ project.sublime-workspace
 game_hot_reload.exe
 game_hot_reload.bin
 linux
+log.txt
 *.rdi
 *.pdb
 sokol-shdc

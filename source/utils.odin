@@ -2,11 +2,27 @@
 
 package game
 
+import "core:os"
+import "web"
+
+_ :: os
+_ :: web
+
+IS_WEB :: ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32
+
 @(require_results)
 read_entire_file :: proc(name: string, allocator := context.allocator, loc := #caller_location) -> (data: []byte, success: bool) {
-	return _read_entire_file(name, allocator, loc)
+	when IS_WEB {
+		return web.read_entire_file(name, allocator, loc)
+	} else {
+		return os.read_entire_file(name, allocator, loc)
+	}
 }
 
 write_entire_file :: proc(name: string, data: []byte, truncate := true) -> (success: bool) {
-	return _write_entire_file(name, data, truncate)
+	when IS_WEB {
+		return web.write_entire_file(name, data, truncate)
+	} else {
+		return os.write_entire_file(name, data, truncate)
+	}
 }
