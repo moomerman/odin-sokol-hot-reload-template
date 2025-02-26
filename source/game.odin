@@ -1,28 +1,27 @@
 /*
 This file is the starting point of your game.
 
-Some important procedures are:
-- game_init_window: Opens the window
-- game_init: Sets up the game state
-- game_update: Run once per frame
-- game_should_close: For stopping your game when close button is pressed
-- game_shutdown: Shuts down game and frees memory
-- game_shutdown_window: Closes window
+Some importants procedures:
+- game_init: Initializes sokol_gfx and sets up the game state.
+- game_frame: Called one per frame, do your game logic and rendering in here.
+- game_cleanup: Called on shutdown of game, cleanup memory etc.
 
-The procs above are used regardless if you compile using the `build_release`
-script or the `build_hot_reload` script. However, in the hot reload case, the
-contents of this file is compiled as part of `build/hot_reload/game.dll` (or
-.dylib/.so on mac/linux). In the hot reload cases some other procedures are
-also used in order to facilitate the hot reload functionality:
+The hot reload compiles the contents of this folder into a game DLL. A host
+application loads that DLL and calls the procedures of the DLL. 
 
-- game_memory: Run just before a hot reload. That way game_hot_reload.exe has a
-      pointer to the game's memory that it can hand to the new game DLL.
-- game_hot_reloaded: Run after a hot reload so that the `g` global
-      variable can be set to whatever pointer it was in the old DLL.
+Special procedures that help facilitate the hot reload:
+- game_memory: Run just before a hot reload. The hot reload host application can
+  that way keep a pointer to the game's memory and feed it to the new game DLL
+  after the hot reload is complete.
+- game_hot_reloaded: Sets the `g` global variable in the new game DLL. The value
+  comes from the value the host application got from game_memory before the
+  hot reload.
 
-NOTE: When compiled as part of `build_release`, `build_debug` or `build_web`
-then this whole package is just treated as a normal Odin package. No DLL is
-created.
+When release or web builds are made, then this whole package is just
+treated as a normal Odin package. No DLL is created.
+
+The hot applications use sokol_app to open the window. They use the settings
+returned by the `game_app_default_desc` procedure.
 */
 
 package game
