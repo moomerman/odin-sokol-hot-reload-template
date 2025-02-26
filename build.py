@@ -14,7 +14,8 @@ args_parser.add_argument("-web",               action="store_true",   help="Buil
 args_parser.add_argument("-emsdk-path",                               help="Path to where you have emscripten installed. Should be the root directory of your emscripten installation. Not necessary if emscripten is in your PATH.")
 args_parser.add_argument("-run",               action="store_true",   help="Run the executable after compiling it.")
 args_parser.add_argument("-no-shader-compile", action="store_true",   help="Don't compile shaders.")
-args_parser.add_argument("-update-sokol",      action="store_true",   help="Download Sokol bindings and Sokol shader compiler. Compiles the libraries for the current platform. Happens automatically when either the `sokol-shdc' or 'source/sokol' directories are missing. Note: Deletes everything in 'sokol-shdc' and 'source/sokol' directories.")
+args_parser.add_argument("-update-sokol",      action="store_true",   help="Download latest Sokol bindings and latest Sokol shader compiler. Happens automatically when the `sokol-shdc' and 'source/sokol' directories are missing. Note: Deletes everything in 'sokol-shdc' and 'source/sokol' directories. Also causes -compile-sokol to happen.")
+args_parser.add_argument("-compile-sokol",     action="store_true",   help="Compile Sokol C libraries for the current platform. Also compile web (WASM) libraries if emscripten is found (optional). Use -emsdk-path to point out emscripten SDK if not in PATH.")
 
 import urllib.request
 import os
@@ -48,7 +49,19 @@ IS_LINUX = SYSTEM == "Linux"
 assert IS_WINDOWS or IS_OSX or IS_LINUX, "Unsupported platform."
 
 def main():
-	update_sokol()
+	do_update = args.update_sokol
+
+	# Looks like a fresh setup, no sokol anywhere! Trigger automatic update.
+	if not os.path.exists(SOKOL_PATH) and not os.path.exists(SOKOL_SHDC_PATH):
+		do_update = True
+
+	if do_update:
+		update_sokol()
+
+	do_compile = do_update or args.compile_sokol
+
+	if do_compile:
+		compile_sokol()
 
 	if not args.no_shader_compile:
 		build_shaders()
@@ -90,10 +103,20 @@ def build_shaders():
 def get_shader_compiler():
 	path = ""
 
+	arch = platform.machine()
+
 	if IS_WINDOWS:
-		path = "sokol-shdc/win32/sokol-shdc.exe"
+		path = "sokol-shdc\\win32\\sokol-shdc.exe"
 	elif IS_LINUX:
-		path = "sokol-shdc/linux/sokol-shdc"
+		if "arm64" in arch or "aarch64" in arch:
+			path = "sokol-shdc/linux_arm64/sokol-shdc"
+		else:
+			path = "sokol-shdc/linux/sokol-shdc"
+	elif IS_OSX:
+		if "arm64" in arch or "aarch64" in arch:
+			path = "sokol-shdc/osx_arm64/sokol-shdc"
+		else:
+			path = "sokol-shdc/osx/sokol-shdc"
 
 	assert os.path.exists(path), "Could not find shader compiler. Try running this script with update-sokol parameter"
 	return path
@@ -174,7 +197,7 @@ def build_hot_reload():
 
 		if not os.path.exists(dll_name):
 			print("Copying %s" % dll_name)
-			shutil.copyfile(sokol_path + "/" + dll_name, dll_name)
+			shutil.copyfile(SOKOL_PATH + "/" + dll_name, dll_name)
 
 	return exe
 
@@ -244,15 +267,13 @@ def build_web():
 
 	emsdk_env = get_emscripten_env_command()
 
-	if emsdk_env is not None:
+	if emsdk_env:
 		if IS_WINDOWS:
 			emcc_command = emsdk_env + " && " + emcc_command
 		else:
 			emcc_command = "bash -c \"" + emsdk_env + " && " + emcc_command + "\""
 	else:
-		emcc_exists = shutil.which("emcc") is not None
-
-		if not emcc_exists:
+		if shutil.which("emcc") is None:
 			print("Could not find emcc. Try providing emscripten SDK path using '-emsdk-path PATH' or run the emsdk_env script inside the emscripten folder before running this script.")
 			exit(1)
 
@@ -281,87 +302,89 @@ def executable_extension():
 
 	return ".bin"
 
-sokol_path = "source/sokol"
+SOKOL_PATH = "source/sokol"
+SOKOL_SHDC_PATH = "sokol-shdc"
 
 def update_sokol():
-	force_update = args.update_sokol
+	def update_sokol_bindings():
+		SOKOL_ZIP_URL = "https://github.com/floooh/sokol-odin/archive/refs/heads/main.zip"
 
-	tools_zip = "https://github.com/floooh/sokol-tools-bin/archive/refs/heads/master.zip"
-	sokol_zip = "https://github.com/floooh/sokol-odin/archive/refs/heads/main.zip"
-	shdc_path = "sokol-shdc"
+		if os.path.exists(SOKOL_PATH):
+			shutil.rmtree(SOKOL_PATH)
 
-	if force_update:
-		if os.path.exists(shdc_path):
-			shutil.rmtree(shdc_path)
-
-		if os.path.exists(sokol_path):
-			shutil.rmtree(sokol_path)
-
-	if (not os.path.exists(sokol_path)) or force_update:
 		temp_zip = "sokol-temp.zip"
 		temp_folder = "sokol-temp"
 		print("Downloading Sokol Odin bindings to directory source/sokol...")
-		urllib.request.urlretrieve(sokol_zip, temp_zip)
+		urllib.request.urlretrieve(SOKOL_ZIP_URL, temp_zip)
 
 		with zipfile.ZipFile(temp_zip) as zip_file:
 			zip_file.extractall(temp_folder)
-			shutil.copytree(temp_folder + "/sokol-odin-main/sokol", sokol_path)
+			shutil.copytree(temp_folder + "/sokol-odin-main/sokol", SOKOL_PATH)
 
 		os.remove(temp_zip)
 		shutil.rmtree(temp_folder)
 
-		print("Building Sokol C libraries...")
-		owd = os.getcwd()
-		os.chdir(sokol_path)
+	def update_sokol_shdc():
+		if os.path.exists(SOKOL_SHDC_PATH):
+			shutil.rmtree(SOKOL_SHDC_PATH)
 
-		emsdk_env = get_emscripten_env_command()
-
-
-		if IS_WINDOWS:
-			cl_exists = shutil.which("cl.exe") is not None
-
-			if cl_exists:
-				execute("build_clibs_windows.cmd")
-			else:
-				print("cl.exe not in PATH. Try running this from a Visual Studio command prompt.")
-
-			emcc_exists = shutil.which("emcc.bat") is not None
-
-			if emcc_exists:
-				execute("build_clibs_wasm.bat")
-			else:
-				print("emcc.exe not in PATH, skipping building of WASM libs.")
-		elif IS_LINUX:
-			execute("bash build_clibs_linux.sh")
-
-			build_wasm_prefix = ""
-			if emsdk_env is not None:
-				os.environ["EMSDK_QUIET"] = "1"
-				build_wasm_prefix += emsdk_env + " && "
-
-			execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
-		elif IS_OSX:
-			execute("bash build_clibs_macos.sh")
-			execute("bash build_clibs_wasm.sh")
-
-		os.chdir(owd)
-
-	if (not os.path.exists(shdc_path)) or force_update:
+		TOOLS_ZIP_URL = "https://github.com/floooh/sokol-tools-bin/archive/refs/heads/master.zip"
 		temp_zip = "sokol-tools-temp.zip"
 		temp_folder = "sokol-tools-temp"
 
 		print("Downloading Sokol Shader Compiler to directory sokol-shdc...")
-		urllib.request.urlretrieve(tools_zip, temp_zip)
+		urllib.request.urlretrieve(TOOLS_ZIP_URL, temp_zip)
 
 		with zipfile.ZipFile(temp_zip) as zip_file:
 			zip_file.extractall(temp_folder)
-			shutil.copytree(temp_folder + "/sokol-tools-bin-master/bin", shdc_path)
+			shutil.copytree(temp_folder + "/sokol-tools-bin-master/bin", SOKOL_SHDC_PATH)
 
 		if IS_LINUX:
 			execute("chmod +x sokol-shdc/linux/sokol-shdc")
 
 		os.remove(temp_zip)
 		shutil.rmtree(temp_folder)
+
+	update_sokol_bindings()
+	update_sokol_shdc()
+
+def compile_sokol():
+	owd = os.getcwd()
+	os.chdir(SOKOL_PATH)
+
+	emsdk_env = get_emscripten_env_command()
+	
+	print("Building Sokol C libraries...")
+
+	if IS_WINDOWS:
+		if shutil.which("cl.exe") is not None:
+			execute("build_clibs_windows.cmd")
+		else:
+			print("cl.exe not in PATH. Try re-running build.py with flag -compile-sokol from a Visual Studio command prompt.")
+
+		if emsdk_env:
+			execute(emsdk_env + " && build_clibs_wasm.bat")
+		else:
+			if shutil.which("emcc.bat"):
+				execute("build_clibs_wasm.bat")
+			else:
+				print("emcc.exe not in PATH, skipping building of WASM libs.")
+
+	elif IS_LINUX:
+		execute("bash build_clibs_linux.sh")
+
+		build_wasm_prefix = ""
+		if emsdk_env:
+			os.environ["EMSDK_QUIET"] = "1"
+			build_wasm_prefix += emsdk_env + " && "
+
+		execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
+	elif IS_OSX:
+		execute("bash build_clibs_macos.sh")
+		execute("bash build_clibs_wasm.sh")
+
+	os.chdir(owd)
+
 
 def get_emscripten_env_command():
 	if args.emsdk_path is None:
