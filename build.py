@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 
 args_parser = argparse.ArgumentParser(
@@ -38,14 +40,12 @@ if num_build_modes > 1:
 	print("Can only use one of: -hot-reload, -release, -debug and -web.")
 	exit(1)
 
-if args.emsdk_path is not None and not args.web:
-	print("You can't use -emsdk-path without also specifying -web.")
-	exit(1)
-
 SYSTEM = platform.system()
 IS_WINDOWS = SYSTEM == "Windows"
 IS_OSX = SYSTEM == "Darwin"
 IS_LINUX = SYSTEM == "Linux"
+
+assert IS_WINDOWS or IS_OSX or IS_LINUX, "Unsupported platform."
 
 def main():
 	update_sokol()
@@ -57,12 +57,14 @@ def main():
 	
 	if args.release:
 		exe_path = build_release()
-	if args.debug:
+	elif args.debug:
 		exe_path = build_debug()
-	if args.hot_reload:
-		exe_path = build_hot_reload()
-	if args.web:
+	elif args.web:
 		exe_path = build_web()
+	elif args.hot_reload:
+		exe_path = build_hot_reload()
+	else:
+		exe_path = build_hot_reload()
 
 	if exe_path != "" and args.run:
 		print("Starting " + exe_path)
@@ -89,7 +91,9 @@ def get_shader_compiler():
 	path = ""
 
 	if IS_WINDOWS:
-		path = "sokol-shdc\\win32\\sokol-shdc.exe"
+		path = "sokol-shdc/win32/sokol-shdc.exe"
+	elif IS_LINUX:
+		path = "sokol-shdc/linux/sokol-shdc"
 
 	assert os.path.exists(path), "Could not find shader compiler. Try running this script with update-sokol parameter"
 	return path
@@ -103,7 +107,11 @@ def build_hot_reload():
 		os.mkdir(out_dir)
 
 	exe = "game_hot_reload" + executable_extension()
-	dll = out_dir + "/game" + dll_extension()
+	dll_final_name = out_dir + "/game" + dll_extension()
+	dll = dll_final_name
+
+	if IS_LINUX or IS_OSX:
+		dll = out_dir + "/game_tmp" + dll_extension()
 
 	# Only used on windows
 	pdb_dir = out_dir + "/game_pdbs"
@@ -139,8 +147,11 @@ def build_hot_reload():
 		# build. This makes debugging work properly.
 		dll_extra_args = " -pdb-name:%s/game_%i.pdb" % (pdb_dir, pdb_number + 1)
 
-	print("Building " + dll + "...")
+	print("Building " + dll_final_name + "...")
 	execute("odin build source -debug -define:SOKOL_DLL=true -build-mode:dll -out:%s %s" % (dll, dll_extra_args))
+
+	if IS_LINUX or IS_OSX:
+		os.rename(dll, dll_final_name)
 
 	if game_running:
 		print("Hot reloading...")
@@ -301,6 +312,9 @@ def update_sokol():
 		owd = os.getcwd()
 		os.chdir(sokol_path)
 
+		emsdk_env = get_emscripten_env_command()
+
+
 		if IS_WINDOWS:
 			cl_exists = shutil.which("cl.exe") is not None
 
@@ -315,7 +329,19 @@ def update_sokol():
 				execute("build_clibs_wasm.bat")
 			else:
 				print("emcc.exe not in PATH, skipping building of WASM libs.")
-			
+		elif IS_LINUX:
+			execute("bash build_clibs_linux.sh")
+
+			build_wasm_prefix = ""
+			if emsdk_env is not None:
+				os.environ["EMSDK_QUIET"] = "1"
+				build_wasm_prefix += emsdk_env + " && "
+
+			execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
+		elif IS_OSX:
+			execute("bash build_clibs_macos.sh")
+			execute("bash build_clibs_wasm.sh")
+
 		os.chdir(owd)
 
 	if (not os.path.exists(shdc_path)) or force_update:
@@ -329,13 +355,31 @@ def update_sokol():
 			zip_file.extractall(temp_folder)
 			shutil.copytree(temp_folder + "/sokol-tools-bin-master/bin", shdc_path)
 
+		if IS_LINUX:
+			execute("chmod +x sokol-shdc/linux/sokol-shdc")
+
 		os.remove(temp_zip)
 		shutil.rmtree(temp_folder)
+
+def get_emscripten_env_command():
+	if args.emsdk_path is None:
+		return None
+
+	if IS_WINDOWS:
+		return os.path.join(args.emsdk_path, "emsdk_env.bat")
+	elif IS_LINUX or IS_OSX:
+		return "source " + os.path.join(args.emsdk_path, "emsdk_env.sh")
+
+	return None
 
 def process_exists(process_name):
 	if IS_WINDOWS:
 		call = 'TASKLIST', '/NH', '/FI', 'imagename eq %s' % process_name
 		return process_name in str(subprocess.check_output(call))
+	else:
+		out = subprocess.run(["pidof", process_name], capture_output=True, text=True).stdout
+		return out != ""
+
 
 	return False
 
