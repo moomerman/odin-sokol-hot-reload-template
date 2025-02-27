@@ -6,57 +6,25 @@
         {
             "label": "Build Debug",
             "type": "shell",
-            "windows": {
-                "command": "${workspaceFolder}/build_debug.bat",
-            },
-            "linux": {
-                "command": "${workspaceFolder}/build_debug.sh",
-            },
-            "osx": {
-                "command": "${workspaceFolder}/build_debug.sh",
-            },
+            "command": "python ${workspaceFolder}/build.py -debug",
             "group": "build"
         },
         {
             "label": "Build Release",
             "type": "shell",
-            "windows": {
-                "command": "${workspaceFolder}/build_release.bat",
-            },
-            "linux": {
-                "command": "${workspaceFolder}/build_release.sh",
-            },
-            "osx": {
-                "command": "${workspaceFolder}/build_release.sh",
-            },
+            "command": "python ${workspaceFolder}/build.py -release",
             "group": "build"
         },
         {
             "label": "Build Web",
             "type": "shell",
-            "windows": {
-                "command": "${workspaceFolder}/build_web.bat",
-            },
-            "linux": {
-                "command": "${workspaceFolder}/build_web.sh",
-            },
-            "osx": {
-                "command": "${workspaceFolder}/build_web.sh",
-            },
+            "command": "python ${workspaceFolder}/build.py -web",
             "group": "build"
         },
         {
             "label": "Build Hot Reload",
             "type": "shell",
-            "windows": {
-                "command": "${workspaceFolder}/build_hot_reload.bat",
-            },
-            "linux": {
-                "command": "${workspaceFolder}/build_hot_reload.sh",
-            },
-            "osx": {
-                "command": "${workspaceFolder}/build_hot_reload.sh",
-            },
+            "command": "python ${workspaceFolder}/build.py -hot-reload",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
