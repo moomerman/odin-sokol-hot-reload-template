@@ -1,8 +1,8 @@
-# THIS IS WORK IN PROGRESS AND NOT READY
-
 # Odin + Sokol + Hot Reload template
 
 Hot reload gameplay code when making games using Odin + Sokol. Also comes with web build support (no hot reload, just for web builds).
+
+![ezgif-660dd8cd5add20](https://github.com/user-attachments/assets/676b48f0-74e3-4ffa-9098-a9956510aacb)
 
 ## Requirements
 
