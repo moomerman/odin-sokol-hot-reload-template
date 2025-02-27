@@ -1,6 +1,8 @@
 # Odin + Sokol + Hot Reload template
 
-Hot reload gameplay code when making games using Odin + Sokol. Also comes with web build support (no hot reload, just for web builds).
+Hot reload gameplay code when making games using Odin + Sokol. Also comes with web build support (no hot reload on web, it's just for web release builds).
+
+Supported platforms: Windows, Linux and Mac. It's possible to do the web build from all of them.
 
 ![ezgif-660dd8cd5add20](https://github.com/user-attachments/assets/676b48f0-74e3-4ffa-9098-a9956510aacb)
 
@@ -38,7 +40,7 @@ If you want web build support, then you either need `emcc` in your path _or_ you
 ## Web build
 
 1. Make sure you've done the [setup](#setup). Pay attention to the stuff about `emcc` and `-emsdk-path`.
-2. Run `build.py -web`
+2. Run `build.py -web`. You may also need to add `-emsdk-path path/to/emscripten`.
 3. Web build is in `build/web`
 
 > [!NOTE]
@@ -53,18 +55,19 @@ Check the web developer tools console for any additional errors. Chrome tends to
 
 `build.py -release` makes a native release build of your game (no hot reloading).
 
-Use `build.py -debug` to create a release-style executable without hot-reloading, but with debugging enabled.
+## Debugging
+
+Add `-debug` when running `build.py` to create debuggable binaries.
 
 ## Updating Sokol
 
-`build.py -update-sokol` downloads the lastest Odin Sokol bindings and latest Sokol shader compiler. Note that this will completely replace everything in the `sokol-shdc` and `source/sokol` directories.
+`build.py -update-sokol` downloads the lastest Odin Sokol bindings and latest Sokol shader compiler.
+
+> [!WARNING]
+> This will completely replace everything in the `sokol-shdc` and `source/sokol` directories.
 
 `build.py -compile-sokol` recompiles the sokol C and WASM libraries.
 
 > [!NOTE]
 > `-update-sokol` automatically does `-compile-sokol`.
-> You can also add `-update-sokol` or `-compile-sokol` when building the game. For example you can do `build.py -hot-reload -update-sokol ` to update Sokol before compiling the hot reload executable.
-
-## TODO
-
-- OSX testing
+> You can also add `-update-sokol` or `-compile-sokol` when building the game. For example you can do `build.py -hot-reload -update-sokol` to update Sokol before compiling the hot reload executable.
