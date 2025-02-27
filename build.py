@@ -99,11 +99,13 @@ def build_shaders():
 
 		langs = ""
 
-		if IS_WINDOWS:
+		if args.web:
+			langs = "glsl300es"
+		elif IS_WINDOWS:
 			langs = "hlsl5"
-		if IS_LINUX:
+		elif IS_LINUX:
 			langs = "glsl430"
-		if IS_OSX:
+		elif IS_OSX:
 			langs = "glsl410" if args.gl else "metal_macos"
 
 		execute(shdc + " -i %s -o %s -l %s -f sokol_odin" % (s, out, langs))
