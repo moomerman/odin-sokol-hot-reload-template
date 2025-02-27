@@ -16,7 +16,7 @@ Supported platforms: Windows, Linux and Mac. It's possible to do the web build f
 
 Run `build.py -update-sokol`. It will download the Sokol bindings and try to build the Sokol C libraries. It also downloads the Sokol Shader compiler.
 
-The above may fail if no C compiler is available. For example, on Windows you may need to use the `x64 Native Tools Command Prompt for VS20XX`. You can re-run the compilation using `build.py -compile-sokol`. This will avoid re-downloading Sokol as `-update-sokol` does.
+The above may fail if no C compiler is available. For example, on Windows you may need to use the `x64 Native Tools Command Prompt for VS20XX`. You can re-run the compilation using `build.py -compile-sokol`. This will avoid re-downloading Sokol, which `-update-sokol` does.
 
 > [!NOTE]
 > `-update-sokol` always does `-compile-sokol` automatically.
