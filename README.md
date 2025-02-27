@@ -71,3 +71,15 @@ Add `-debug` when running `build.py` to create debuggable binaries.
 > [!NOTE]
 > `-update-sokol` automatically does `-compile-sokol`.
 > You can also add `-update-sokol` or `-compile-sokol` when building the game. For example you can do `build.py -hot-reload -update-sokol` to update Sokol before compiling the hot reload executable.
+
+## Common issues
+
+### The build script crashes due to missing libraries
+
+- Make sure you're using a terminal that has access to a C compiler.
+- Re-run `build.py -compile-sokol`. If you want web (WASM) support, then make sure to have `emcc` in the PATH or use `-emsdk-path path/to/emscripten` to point out your emscripten installation.
+
+### I'm on an old mac with no metal support
+
+- Add `-gl` when running `build.py` to force OpenGL
+- Remove the `set -e` lines from `source/sokol/build_clibs_macos.sh` and `source/sokol/build_clibs_macos_dylib.sh` and re-run `build.py -compile-sokol`. This will make those scripts not crash when it fails to compile some metal-related Sokol libraries.
