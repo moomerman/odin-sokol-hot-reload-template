@@ -18,11 +18,7 @@
 			"variants": [
 				{
 					"name": "release",
-					"shell_cmd": "python build.py -release",
-				},
-				{
-					"name": "debug",
-					"shell_cmd": "python build.py -release",
+					"shell_cmd": "python build.py -release -run",
 				},
 				{
 					"name": "web",
