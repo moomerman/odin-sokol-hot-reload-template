@@ -16,6 +16,7 @@ args_parser.add_argument("-debug",             action="store_true",   help="Crea
 args_parser.add_argument("-no-shader-compile", action="store_true",   help="Don't compile shaders.")
 args_parser.add_argument("-web",               action="store_true",   help="Build web release. Make sure emscripten (emcc) is in your PATH or use -emsdk-path flag to specify where it lives.")
 args_parser.add_argument("-emsdk-path",                               help="Path to where you have emscripten installed. Should be the root directory of your emscripten installation. Not necessary if emscripten is in your PATH. Can be used with both -web and -compile-sokol (the latter needs it when building the Sokol web (WASM) libraries).")
+args_parser.add_argument("-gl",                action="store_true",   help="Force OpenGL Sokol backend. Useful on some older computers, for example old MacBooks that don't support Metal.")
 
 import urllib.request
 import os
@@ -95,7 +96,7 @@ def build_shaders():
 		out_dir = os.path.dirname(s)
 		out_filename = os.path.basename(s)
 		out = out_dir + "/gen__" + (out_filename.removesuffix("glsl") + "odin")
-		execute(shdc + " -i %s -o %s -l glsl300es:hlsl4:glsl430 -f sokol_odin" % (s, out))
+		execute(shdc + " -i %s -o %s -l glsl300es:hlsl4:glsl410:metal_macos -f sokol_odin" % (s, out))
 
 def get_shader_compiler():
 	path = ""
@@ -142,6 +143,9 @@ def build_hot_reload():
 
 	if args.debug:
 		dll_extra_args += " -debug"
+
+	if args.gl:
+		dll_extra_args += " -define:SOKOL_USE_GL=true"
 
 	game_running = process_exists(exe)
 
@@ -194,6 +198,9 @@ def build_hot_reload():
 	if args.debug:
 		exe_extra_args += " -debug"
 
+	if args.gl:
+		exe_extra_args += " -define:SOKOL_USE_GL=true"
+
 	print("Building " + exe + "...")
 	execute("odin build source/main_hot_reload -strict-style -define:SOKOL_DLL=true -vet -out:%s %s" % (exe, exe_extra_args))
 
@@ -227,6 +234,9 @@ def build_release():
 			extra_args += " -subsystem:windows"
 	else:
 		extra_args += " -debug"
+
+	if args.gl:
+		extra_args += " -define:SOKOL_USE_GL=true"
 
 	execute("odin build source/main_release -out:%s -strict-style -vet %s" % (exe, extra_args))
 	shutil.copytree("assets", out_dir + "/assets")
@@ -399,6 +409,7 @@ def compile_sokol():
 		
 	elif IS_OSX:
 		execute("bash build_clibs_macos.sh")
+		execute("bash build_clibs_macos_dylib.sh")
 		
 		build_wasm_prefix = ""
 		if emsdk_env:
@@ -428,7 +439,7 @@ def process_exists(process_name):
 		call = 'TASKLIST', '/NH', '/FI', 'imagename eq %s' % process_name
 		return process_name in str(subprocess.check_output(call))
 	else:
-		out = subprocess.run(["pidof", process_name], capture_output=True, text=True).stdout
+		out = subprocess.run(["pgrep", "-f", process_name], capture_output=True, text=True).stdout
 		return out != ""
 
 
