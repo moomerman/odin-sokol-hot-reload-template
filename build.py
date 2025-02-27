@@ -131,7 +131,7 @@ def build_hot_reload():
 	if not os.path.exists(out_dir):
 		make_dirs(out_dir)
 
-	exe = "game_hot_reload" + executable_extension()
+	exe = "./game_hot_reload" + executable_extension()
 	dll_final_name = out_dir + "/game" + dll_extension()
 	dll = dll_final_name
 
