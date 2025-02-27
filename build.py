@@ -41,7 +41,7 @@ if num_build_modes > 1:
 	print("Can only use one of: -hot-reload, -release, -debug and -web.")
 	exit(1)
 elif num_build_modes == 0:
-	print("YOu must use one of: -hot-reload, -release, -debug or -web.")
+	print("You must use one of: -hot-reload, -release, -debug or -web.")
 	exit(1)
 
 SYSTEM = platform.system()
@@ -124,11 +124,12 @@ def get_shader_compiler():
 
 path_join = os.path.join
 
+
 def build_hot_reload():
 	out_dir = "build/hot_reload"
 
 	if not os.path.exists(out_dir):
-		os.mkdir(out_dir)
+		make_dirs(out_dir)
 
 	exe = "game_hot_reload" + executable_extension()
 	dll_final_name = out_dir + "/game" + dll_extension()
@@ -156,7 +157,7 @@ def build_hot_reload():
 				shutil.rmtree(pdb_dir)
 
 		if not os.path.exists(pdb_dir):
-			os.mkdir(pdb_dir)
+			make_dirs(pdb_dir)
 		else:
 			pdb_files = os.listdir(pdb_dir)
 
@@ -208,7 +209,7 @@ def build_release():
 	if os.path.exists(out_dir):
 		shutil.rmtree(out_dir)
 
-	os.mkdir(out_dir)
+	make_dirs(out_dir)
 
 	exe = out_dir + "/game_release" + executable_extension()
 
@@ -227,8 +228,7 @@ def build_release():
 def build_debug():
 	out_dir = "build/debug"
 
-	if not os.path.exists(out_dir):
-		os.mkdir(out_dir)
+	make_dirs(out_dir)
 
 	exe = out_dir + "/game_debug" + executable_extension()
 	print("Building " + exe + "...")
@@ -238,9 +238,7 @@ def build_debug():
 
 def build_web():
 	out_dir = "build/web"
-
-	if not os.path.exists(out_dir):
-		os.mkdir(out_dir)
+	make_dirs(out_dir)
 
 	print("Building js_wasm32 game object...")
 	execute("odin build source/main_web -target:js_wasm32 -build-mode:obj -vet -strict-style -out:%s/game -debug" % out_dir)
@@ -419,5 +417,16 @@ def process_exists(process_name):
 
 
 	return False
+
+def make_dirs(path):
+	n = os.path.normpath(path)
+	s = n.split(os.sep)
+	p = ""
+
+	for d in s:
+		p = os.path.join(p, d)
+
+		if not os.path.exists(p):
+			os.mkdir(p)
 
 main()
