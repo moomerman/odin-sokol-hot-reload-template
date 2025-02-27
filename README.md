@@ -31,7 +31,7 @@ If you want web build support, then you either need `emcc` in your path _or_ you
 1. Make sure you've done the [setup](#setup)
 2. Run `build.py -hot-reload -run`
 3. A game with just a spinning cube should start
-4. Leave the game running, change a some line in `game.odin`. For example, you can modify the line `g.rx += 60 * dt` to use the value `500` instead of `60`.
+4. Leave the game running, change a some line in `source/game.odin`. For example, you can modify the line `g.rx += 60 * dt` to use the value `500` instead of `60`.
 5. Re-run `build.py -hot-reload -run`. The game DLL will re-compile and get reloaded. The cube will spin faster.
 
 > [!NOTE]
