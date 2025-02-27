@@ -80,11 +80,7 @@ def main():
 	
 	if exe_path != "" and args.run:
 		print("Starting " + exe_path)
-		
-		if IS_WINDOWS:
-			os.system("start " + exe_path)
-		else:
-			subprocess.Popen(exe_path)
+		subprocess.Popen(exe_path)
 
 def build_shaders():
 	print("Building shaders...")
