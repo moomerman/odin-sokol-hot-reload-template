@@ -10,7 +10,6 @@ package main
 
 import "core:dynlib"
 import "core:fmt"
-import "core:c/libc"
 import "core:os"
 import "core:os/os2"
 import "core:log"
@@ -226,10 +225,7 @@ main :: proc() {
 	free_all(context.temp_allocator)
 
 	if reset_tracking_allocator(&tracking_allocator) {
-		// This prevents the game from closing without you seeing the memory
-		// leaks. This is mostly needed because I use Sublime Text and my game's
-		// console isn't hooked up into Sublime's console properly.
-		libc.getchar()
+		// TODO do something here to make user aware that the program leaked?
 	}
 
 	for &g in old_game_apis {

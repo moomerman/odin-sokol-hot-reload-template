@@ -24,6 +24,7 @@ import zipfile
 import shutil
 import platform
 import subprocess
+import functools
 from enum import Enum
 
 args = args_parser.parse_args()
@@ -321,7 +322,9 @@ def build_web():
 
 def execute(cmd):
 	res = os.system(cmd)
-	assert res == 0, "Failed running: " + cmd
+	if res != 0:
+		print("Failed running:" + cmd)
+		exit(1)
 
 def dll_extension():
 	if IS_WINDOWS:
@@ -471,5 +474,7 @@ def make_dirs(path):
 
 		if not os.path.exists(p):
 			os.mkdir(p)
+
+print = functools.partial(print, flush=True)
 
 main()
