@@ -96,7 +96,17 @@ def build_shaders():
 		out_dir = os.path.dirname(s)
 		out_filename = os.path.basename(s)
 		out = out_dir + "/gen__" + (out_filename.removesuffix("glsl") + "odin")
-		execute(shdc + " -i %s -o %s -l glsl300es:hlsl4:glsl410:metal_macos -f sokol_odin" % (s, out))
+
+		langs = ""
+
+		if IS_WINDOWS:
+			langs = "hlsl5"
+		if IS_LINUX:
+			langs = "glsl430"
+		if IS_OSX:
+			langs = "glsl410" if args.gl else "metal_macos"
+
+		execute(shdc + " -i %s -o %s -l %s -f sokol_odin" % (s, out, langs))
 
 def get_shader_compiler():
 	path = ""
