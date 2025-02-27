@@ -9,12 +9,12 @@ args_parser = argparse.ArgumentParser(
 
 args_parser.add_argument("-hot-reload",        action="store_true",   help="Build hot reload game DLL. Also builds executable if game not already running. This is the default.")
 args_parser.add_argument("-release",           action="store_true",   help="Build release game executable. Note: Deletes everything in the 'build/release' directory to make sure you get a clean release.")
-args_parser.add_argument("-debug",             action="store_true",   help="Build release-style game executable, but with debugging enabled. Note: Don't use this to debug the hot reload exe. The hot reload exe always has debugging enabled.")
 args_parser.add_argument("-web",               action="store_true",   help="Build web release. Make sure emscripten (emcc) is in your PATH or use -emsdk-path flag to specify where it lives.")
 args_parser.add_argument("-emsdk-path",                               help="Path to where you have emscripten installed. Should be the root directory of your emscripten installation. Not necessary if emscripten is in your PATH.")
 args_parser.add_argument("-update-sokol",      action="store_true",   help="Download latest Sokol bindings and latest Sokol shader compiler. Happens automatically when the 'sokol-shdc' and 'source/sokol' directories are missing. Note: Deletes everything in 'sokol-shdc' and 'source/sokol' directories. Also causes -compile-sokol to happen.")
 args_parser.add_argument("-compile-sokol",     action="store_true",   help="Compile Sokol C libraries for the current platform. Also compile web (WASM) libraries if emscripten is found (optional). Use -emsdk-path to point out emscripten SDK if not in PATH.")
 args_parser.add_argument("-run",               action="store_true",   help="Run the executable after compiling it.")
+args_parser.add_argument("-debug",             action="store_true",   help="Create debuggable binaries. Makes it possible to debug hot reload and release build in a debugger. For the web build it means that better error messages are printed to console. Debug mode comes with a performance penalty.")
 args_parser.add_argument("-no-shader-compile", action="store_true",   help="Don't compile shaders.")
 
 import urllib.request
@@ -32,16 +32,14 @@ if args.hot_reload:
 	num_build_modes += 1
 if args.release:
 	num_build_modes += 1
-if args.debug:
-	num_build_modes += 1
 if args.web:
 	num_build_modes += 1
 
 if num_build_modes > 1:
-	print("Can only use one of: -hot-reload, -release, -debug and -web.")
+	print("Can only use one of: -hot-reload, -release and -web.")
 	exit(1)
-elif num_build_modes == 0:
-	print("You must use one of: -hot-reload, -release, -debug or -web.")
+elif num_build_modes == 0 and not args.update_sokol and not args.compile_sokol:
+	print("You must use one of: -hot-reload, -release, -web, -update-sokol or -compile-sokol.")
 	exit(1)
 
 SYSTEM = platform.system()
@@ -73,8 +71,6 @@ def main():
 	
 	if args.release:
 		exe_path = build_release()
-	elif args.debug:
-		exe_path = build_debug()
 	elif args.web:
 		exe_path = build_web()
 	elif args.hot_reload:
@@ -131,7 +127,7 @@ def build_hot_reload():
 	if not os.path.exists(out_dir):
 		make_dirs(out_dir)
 
-	exe = "./game_hot_reload" + executable_extension()
+	exe = "game_hot_reload" + executable_extension()
 	dll_final_name = out_dir + "/game" + dll_extension()
 	dll = dll_final_name
 
@@ -143,6 +139,10 @@ def build_hot_reload():
 	pdb_number = 0
 	
 	dll_extra_args = ""
+
+	if args.debug:
+		dll_extra_args += " -debug"
+
 	game_running = process_exists(exe)
 
 	if IS_WINDOWS:
@@ -170,10 +170,10 @@ def build_hot_reload():
 
 		# On windows we make sure the PDB name for the DLL is unique on each
 		# build. This makes debugging work properly.
-		dll_extra_args = " -pdb-name:%s/game_%i.pdb" % (pdb_dir, pdb_number + 1)
+		dll_extra_args += " -pdb-name:%s/game_%i.pdb" % (pdb_dir, pdb_number + 1)
 
 	print("Building " + dll_final_name + "...")
-	execute("odin build source -debug -define:SOKOL_DLL=true -build-mode:dll -out:%s %s" % (dll, dll_extra_args))
+	execute("odin build source -define:SOKOL_DLL=true -build-mode:dll -out:%s %s" % (dll, dll_extra_args))
 
 	if IS_LINUX or IS_OSX:
 		os.rename(dll, dll_final_name)
@@ -191,17 +191,20 @@ def build_hot_reload():
 	if IS_WINDOWS:
 		exe_extra_args = " -pdb-name:%s/main_hot_reload.pdb" % out_dir
 
+	if args.debug:
+		exe_extra_args += " -debug"
+
 	print("Building " + exe + "...")
-	execute("odin build source/main_hot_reload -strict-style -define:SOKOL_DLL=true -vet -debug -out:%s %s" % (exe, exe_extra_args))
+	execute("odin build source/main_hot_reload -strict-style -define:SOKOL_DLL=true -vet -out:%s %s" % (exe, exe_extra_args))
 
 	if IS_WINDOWS:
-		dll_name = "sokol_dll_windows_x64_d3d11_debug.dll"
+		dll_name = "sokol_dll_windows_x64_d3d11_debug.dll" if args.debug else "sokol_dll_windows_x64_d3d11_release.dll"
 
 		if not os.path.exists(dll_name):
 			print("Copying %s" % dll_name)
 			shutil.copyfile(SOKOL_PATH + "/" + dll_name, dll_name)
 
-	return exe
+	return "./" + exe
 
 def build_release():
 	out_dir = "build/release"
@@ -217,44 +220,45 @@ def build_release():
 
 	extra_args = ""
 
-	if IS_WINDOWS:
-		extra_args += " -subsystem:windows"
+	if not args.debug:
+		extra_args += " -no-bounds-check -o:speed"
 
-	execute("odin build source/main_release -out:%s -strict-style -vet -no-bounds-check -o:speed %s" % (exe, extra_args))
+		if IS_WINDOWS:
+			extra_args += " -subsystem:windows"
+	else:
+		extra_args += " -debug"
+
+	execute("odin build source/main_release -out:%s -strict-style -vet %s" % (exe, extra_args))
 	shutil.copytree("assets", out_dir + "/assets")
 
-	return exe
-
-def build_debug():
-	out_dir = "build/debug"
-
-	make_dirs(out_dir)
-
-	exe = out_dir + "/game_debug" + executable_extension()
-	print("Building " + exe + "...")
-	execute("odin build source/main_release -out:%s -strict-style -vet -debug" % exe)
-	shutil.copytree("assets", out_dir + "/assets", dirs_exist_ok = True)
 	return exe
 
 def build_web():
 	out_dir = "build/web"
 	make_dirs(out_dir)
 
+	odin_extra_args = ""
+
+	if args.debug:
+		odin_extra_args += " -debug"
+
 	print("Building js_wasm32 game object...")
-	execute("odin build source/main_web -target:js_wasm32 -build-mode:obj -vet -strict-style -out:%s/game -debug" % out_dir)
+	execute("odin build source/main_web -target:js_wasm32 -build-mode:obj -vet -strict-style -out:%s/game %s" % (out_dir, odin_extra_args))
 	odin_path = subprocess.run(["odin", "root"], capture_output=True, text=True).stdout
 
 	shutil.copyfile(os.path.join(odin_path, "core/sys/wasm/js/odin.js"), os.path.join(out_dir, "odin.js"))
 	os.environ["EMSDK_QUIET"] = "1"
 
+	wasm_lib_suffix = "debug.a" if args.debug else "release.a"
+
 	emcc_files = [
 		"%s/game.wasm.o" % out_dir,
-		"source/sokol/app/sokol_app_wasm_gl_release.a",
-		"source/sokol/glue/sokol_glue_wasm_gl_release.a",
-		"source/sokol/gfx/sokol_gfx_wasm_gl_release.a",
-		"source/sokol/shape/sokol_shape_wasm_gl_release.a",
-		"source/sokol/log/sokol_log_wasm_gl_release.a",
-		"source/sokol/gl/sokol_gl_wasm_gl_release.a",
+		"source/sokol/app/sokol_app_wasm_gl_" + wasm_lib_suffix,
+		"source/sokol/glue/sokol_glue_wasm_gl_" + wasm_lib_suffix,
+		"source/sokol/gfx/sokol_gfx_wasm_gl_" + wasm_lib_suffix,
+		"source/sokol/shape/sokol_shape_wasm_gl_" + wasm_lib_suffix,
+		"source/sokol/log/sokol_log_wasm_gl_" + wasm_lib_suffix,
+		"source/sokol/gl/sokol_gl_wasm_gl_" + wasm_lib_suffix,
 	]
 
 	emcc_files_str = " ".join(emcc_files)
@@ -262,7 +266,14 @@ def build_web():
 	# Note --preload-file assets, this bakes in the whole assets directory into
 	# the web build.
 	emcc_flags = "--shell-file source/web/index_template.html --preload-file assets -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sMAX_WEBGL_VERSION=2 -sASSERTIONS"
-	emcc_command = "emcc -g -o %s/index.html %s %s" % (out_dir, emcc_files_str, emcc_flags)
+
+	build_flags = ""
+
+	# -g is the emcc debug flag, it makes the errors in the browser console better.
+	if args.debug:
+		build_flags += " -g "
+
+	emcc_command = "emcc %s -o %s/index.html %s %s" % (build_flags, out_dir, emcc_files_str, emcc_flags)
 
 	emsdk_env = get_emscripten_env_command()
 
@@ -372,7 +383,7 @@ def compile_sokol():
 			if shutil.which("emcc.bat"):
 				execute("build_clibs_wasm.bat")
 			else:
-				print("emcc.exe not in PATH, skipping building of WASM libs.")
+				print("emcc not in PATH, skipping building of WASM libs.")
 
 	elif IS_LINUX:
 		execute("bash build_clibs_linux.sh")
@@ -381,8 +392,11 @@ def compile_sokol():
 		if emsdk_env:
 			os.environ["EMSDK_QUIET"] = "1"
 			build_wasm_prefix += emsdk_env + " && "
-
-		execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
+		elif shutil.which("emcc") is not None:
+			execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
+		else:
+			print("emcc not in PATH, skipping building of WASM libs. Tip: You can also use -emsdk-path to specify where emscripten lives.")
+		
 	elif IS_OSX:
 		execute("bash build_clibs_macos.sh")
 		
@@ -390,8 +404,10 @@ def compile_sokol():
 		if emsdk_env:
 			os.environ["EMSDK_QUIET"] = "1"
 			build_wasm_prefix += emsdk_env + " && "
-
-		execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
+		elif shutil.which("emcc") is not None:
+			execute("bash -c \"" + build_wasm_prefix + " bash build_clibs_wasm.sh\"")
+		else:
+			print("emcc not in PATH, skipping building of WASM libs. Tip: You can also use -emsdk-path to specify where emscripten lives.")
 
 	os.chdir(owd)
 

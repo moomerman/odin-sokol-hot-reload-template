@@ -87,6 +87,7 @@ game_init :: proc() {
 		(BYTE4N, UBYTE4N, SHORT2N, SHORT4N), which can be converted
 		to floating point formats in the vertex shader inputs.
 	*/
+
 	vertices := [?]Vertex {
 		// pos               color       uvs
 		{ -1.0, -1.0, -1.0,  0xFF0000FF,     0,     0 },

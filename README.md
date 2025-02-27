@@ -6,9 +6,9 @@ Hot reload gameplay code when making games using Odin + Sokol. Also comes with w
 
 ## Requirements
 
-- Odin compiler (must be in PATH)
-- Python
-- Emscripten if you want web build support
+- [Odin compiler](https://odin-lang.org/) (must be in PATH)
+- [Python 3](https://www.python.org/) (for the build script)
+- [Emscripten](https://emscripten.org/) (optional, for web build support)
 
 ## Setup
 
