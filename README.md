@@ -35,3 +35,9 @@ You can do `build.py -debug` to create a release-style executable without hot-re
 Add `-update-sokol` when runing `build.py` to download the lastest Odin Sokol bindings and latest Sokol shader compiler. Note that this will completely replace everything in the `sokol-shdc` and `source/sokol` directories.
 
 The update process also tries to compile the Sokol C libraries.
+
+## TODO
+
+- VS Code settings is from raylib template, it's currently broken!
+- More Linux testing
+- OSX testing

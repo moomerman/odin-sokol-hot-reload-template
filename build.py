@@ -342,6 +342,11 @@ def update_sokol():
 
 		if IS_LINUX:
 			execute("chmod +x sokol-shdc/linux/sokol-shdc")
+			execute("chmod +x sokol-shdc/linux_arm64/sokol-shdc")
+
+		if IS_OSX:
+			execute("chmod +x sokol-shdc/osx/sokol-shdc")
+			execute("chmod +x sokol-shdc/osx_arm64/sokol-shdc")
 
 		os.remove(temp_zip)
 		shutil.rmtree(temp_folder)
