@@ -38,6 +38,5 @@ The update process also tries to compile the Sokol C libraries.
 
 ## TODO
 
-- VS Code settings is from raylib template, it's currently broken!
 - More Linux testing
 - OSX testing
