@@ -408,7 +408,7 @@ def compile_sokol():
 			if shutil.which("emcc.bat"):
 				execute("build_clibs_wasm.bat")
 			else:
-				print("emcc not in PATH, skipping building of WASM libs.")
+				print("emcc not in PATH, skipping building of WASM libs. Tip: You can also use -emsdk-path to specify where emscripten lives.")
 
 	elif IS_LINUX:
 		execute("bash build_clibs_linux.sh")
