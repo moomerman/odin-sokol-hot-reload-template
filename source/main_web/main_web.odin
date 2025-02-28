@@ -28,10 +28,9 @@ main :: proc() {
 	app_desc.cleanup_cb = cleanup
 	app_desc.event_cb = event
 
+	// On web this will not block. Any line after this one will run immediately!
+	// Do any on-shutdown stuff in the `cleanup` proc.
 	sapp.run(app_desc)
-	free_all(context.temp_allocator)
-
-	log.destroy_console_logger(context.logger)
 }
 
 custom_context: runtime.Context
@@ -51,15 +50,13 @@ event :: proc "c" (e: ^sapp.Event) {
 	game.game_event(e)
 }
 
+// Most web programs will never "quit". The tab will just close. But if you make
+// a web program that runs `sapp.quit()`, then this will run.
 cleanup :: proc "c" () {
 	context = custom_context
 	game.game_cleanup()
+	log.destroy_console_logger(context.logger)
+
+	// This runs any procedure tagged with `@fini`.
+	runtime._cleanup_runtime()
 }
-
-// make game use good GPU on laptops etc
-
-@(export)
-NvOptimusEnablement: u32 = 1
-
-@(export)
-AmdPowerXpressRequestHighPerformance: i32 = 1
