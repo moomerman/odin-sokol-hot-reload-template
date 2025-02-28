@@ -206,7 +206,7 @@ def build_hot_reload():
 	exe_extra_args = ""
 
 	if IS_WINDOWS:
-		exe_extra_args = " -pdb-name:%s/main_hot_reload.pdb" % out_dir
+		exe_extra_args += " -pdb-name:%s/main_hot_reload.pdb" % out_dir
 
 	if args.debug:
 		exe_extra_args += " -debug"
@@ -223,6 +223,32 @@ def build_hot_reload():
 		if not os.path.exists(dll_name):
 			print("Copying %s" % dll_name)
 			shutil.copyfile(SOKOL_PATH + "/" + dll_name, dll_name)
+
+	if IS_OSX:
+		dylib_folder = "source/sokol/dylib"
+
+		if not os.path.exists(dylib_folder):
+			print("Dynamic libraries for OSX don't seem to be built. Please re-run 'build.py -compile-sokol'.")
+			exit(1)
+
+		if not os.path.exists("dylib"):
+			os.mkdir("dylib")
+
+		dylibs = os.listdir(dylib_folder)
+
+		for d in dylibs:
+			src = "%s/%s" % (dylib_folder, d)
+			dest = "dylib/%s" % d
+			do_copy = False
+
+			if not os.path.exists(dest):
+				do_copy = True
+			elif os.path.getsize(dest) != os.path.getsize(src):
+				do_copy = True
+
+			if do_copy:
+				print("Copying %s to %s" % (src, dest))
+				shutil.copyfile(src, dest)
 
 	return "./" + exe
 
