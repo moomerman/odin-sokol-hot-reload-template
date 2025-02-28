@@ -11,11 +11,11 @@ application loads that DLL and calls the procedures of the DLL.
 
 Special procedures that help facilitate the hot reload:
 - game_memory: Run just before a hot reload. The hot reload host application can
-  that way keep a pointer to the game's memory and feed it to the new game DLL
-  after the hot reload is complete.
+	that way keep a pointer to the game's memory and feed it to the new game DLL
+	after the hot reload is complete.
 - game_hot_reloaded: Sets the `g` global variable in the new game DLL. The value
-  comes from the value the host application got from game_memory before the
-  hot reload.
+	comes from the value the host application got from game_memory before the
+	hot reload.
 
 When release or web builds are made, then this whole package is just
 treated as a normal Odin package. No DLL is created.
