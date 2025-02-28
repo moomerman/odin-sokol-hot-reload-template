@@ -219,7 +219,9 @@ main :: proc() {
 	free_all(context.temp_allocator)
 
 	if reset_tracking_allocator(&tracking_allocator) {
-		// TODO do something here to make user aware that the program leaked?
+		// You can add something here to inform the user that the program leaked
+		// memory. In many cases a terminal window will close on shutdown so the
+		// user could miss it.
 	}
 
 	for &g in old_game_apis {
