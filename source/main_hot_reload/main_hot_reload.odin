@@ -33,13 +33,7 @@ GAME_DLL_PATH :: GAME_DLL_DIR + "game" + DLL_EXT
 // the compiler from writing to it.
 copy_dll :: proc(to: string) -> bool {
 	copy_err := os2.copy_file(to, GAME_DLL_PATH)
-
-	if copy_err != nil {
-		fmt.printfln("Failed to copy " + GAME_DLL_PATH + " to {0}: %v", to, copy_err)
-		return false
-	}
-
-	return true
+	return copy_err == nil
 }
 
 Game_API :: struct {
