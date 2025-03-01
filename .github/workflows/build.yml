@@ -1,0 +1,110 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  itchio_api_key: ${{ secrets.ITCHIO_API_KEY }}
+  itchio_project: moomerman/odin-sokol-template-test
+
+# https://github.com/marketplace/actions/setup-odin
+# https://github.com/mymindstorm/setup-emsdk
+# https://github.com/marketplace/actions/itch-io-upload
+# https://github.com/marketplace/actions/cache-apt-packages
+
+jobs:
+  build_linux:
+    name: linux + wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: mymindstorm/setup-emsdk@v14
+      - uses: actions/checkout@v4
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libglu1-mesa-dev mesa-common-dev xorg-dev libasound2-dev
+          version: 1.2
+
+      - name: Build desktop
+        run: ./build.py -release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{runner.os}}-${{runner.arch}}
+          path: build/release
+
+      - name: Build web
+        run: ./build.py -web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: build/web
+
+  build_macos:
+    name: macos
+    strategy:
+      matrix:
+        os: [macos-13, macos-15]
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - name: Build desktop
+        run: ./build.py -release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{runner.os}}-${{runner.arch}}
+          path: build/release
+
+  build_windows:
+    name: windows
+    runs-on: windows-latest
+    steps:
+      - uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build desktop
+        run: python .\build.py -release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{runner.os}}-${{runner.arch}}
+          path: build\release
+
+  itch_upload:
+    # if: ${{ github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    needs: [build_linux, build_macos, build_windows]
+    strategy:
+      fail-fast: false
+      matrix:
+        artifact:
+          - { name: "wasm", channel: "HTML" }
+          - { name: "wasm", channel: "wasm" }
+          - { name: "Linux-X64", channel: "linux-x64" }
+          - { name: "macOS-ARM64", channel: "macos-arm64" }
+          - { name: "macOS-X64", channel: "macos-x64" }
+          - { name: "Windows-X64", channel: "windows-x64" }
+    name: itch (${{ matrix.artifact.channel }})
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact.name }}
+          path: _itch/${{ matrix.artifact.name }}
+
+      - uses: robpc/itchio-upload-action@v1
+        if: env.itchio_api_key != ''
+        with:
+          path: _itch/${{ matrix.artifact.name }}
+          project: ${{ env.itchio_project }}
+          api-key: ${{ env.itchio_api_key }}
+          channel: ${{ matrix.artifact.channel }}
